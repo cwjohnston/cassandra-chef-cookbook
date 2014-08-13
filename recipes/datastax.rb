@@ -130,6 +130,8 @@ cassandra_running = Mixlib::ShellOut.new("service cassandra status").run_command
 file "#{first_run_complete}" do
   if cassandra_running.exitstatus != 0
     content '{ "seeds": { "are_set": false } }'
+  elsif cassandra_running.exitstatus != 0 && !node.cassandra.seeds.include?("127.0.0.1")
+    content '{ "seeds": { "are_set": true } }'
   else
     content '{ "seeds": { "are_set": true } }'
   end
