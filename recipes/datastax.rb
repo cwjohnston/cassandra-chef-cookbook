@@ -76,7 +76,7 @@ link '/etc/init.d/cassandra' do
 end
 
 first_run_complete = ::File.join(node.cassandra.conf_dir, "first_run_complete.json")
-seeds_set = {}
+seeds_set = { :seeds => { :are_set => false } }
 
 if ::File.exists?(first_run_complete)
   require 'json'
