@@ -75,16 +75,37 @@ link '/etc/init.d/cassandra' do
   only_if { ::File.exists?('/etc/init.d/dse') && !::File.exists?('/etc/init.d/cassandra') }
 end
 
-%w(cassandra.yaml cassandra-env.sh).each do |f|
-  template File.join(node.cassandra.conf_dir, f) do
-    cookbook node.cassandra.templates_cookbook
-    source "#{f}.erb"
-    owner node.cassandra.user
-    group node.cassandra.user
-    mode  0644
-    if ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json")
-      notifies :restart, "service[cassandra]", :delayed
-    end
+first_run_complete = ::File.join(node.cassandra.conf_dir, "first_run_complete.json")
+seeds_set = { :seeds => { :are_set => false } }
+
+if ::File.exists?(first_run_complete)
+  require 'json'
+  seeds_set = JSON.parse(::File.read(first_run_complete))
+end
+
+template ::File.join(node.cassandra.conf_dir, "cassandra.yaml") do
+  cookbook node.cassandra.templates_cookbook
+  source "cassandra.yaml.erb"
+  owner node.cassandra.user
+  group node.cassandra.user
+  mode  0644
+  if ::File.exists?(first_run_complete) && seeds_set["seeds"]["are_set"]
+    notifies :nothing, "service[cassandra]", :delayed
+  elsif ::File.exists?(first_run_complete) && !seeds_set["seeds"]["are_set"]
+    notifies :restart, "service[cassandra]", :delayed
+  else
+    Chef::Log.warn "No action taken on conf file configuration"
+  end
+end
+
+template ::File.join(node.cassandra.conf_dir, "cassandra-env.sh") do
+  cookbook node.cassandra.templates_cookbook
+  source "cassandra-env.sh.erb"
+  owner node.cassandra.user
+  group node.cassandra.user
+  mode  0644
+  if ::File.exists?(first_run_complete)
+    notifies :restart, "service[cassandra]", :delayed
   end
 end
 
@@ -92,7 +113,7 @@ template '/etc/dse/dse.yaml' do
   cookbook node.cassandra.templates_cookbook
   source 'dse.yaml.erb'
   only_if { node[:cassandra][:datastax_repo_uri] =~ /\/enterprise/ }
-  if ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json")
+  if ::File.exists?(first_run_complete)
     notifies :restart, "service[cassandra]", :delayed
   end
 end
@@ -101,9 +122,17 @@ service "cassandra" do
   supports :restart => true, :status => true
   service_name node.cassandra.service_name
   action [:enable, :start]
-  only_if { ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json") }
+  only_if { ::File.exists?(first_run_complete) }
 end
 
-file "#{node.cassandra.conf_dir}/first_run_complete.json" do
-  content "{}"
+cassandra_running = Mixlib::ShellOut.new("service cassandra status").run_command
+
+file "#{first_run_complete}" do
+  if cassandra_running.exitstatus != 0 && node.cassandra.seeds.include?("127.0.0.1")
+    content '{ "seeds": { "are_set": false } }'
+  elsif cassandra_running.exitstatus != 0 && !node.cassandra.seeds.include?("127.0.0.1")
+    content '{ "seeds": { "are_set": true } }'
+  else
+    content '{ "seeds": { "are_set": true } }'
+  end
 end
