@@ -125,12 +125,12 @@ service "cassandra" do
   only_if { ::File.exists?(first_run_complete) }
 end
 
-cassandra_running = execute "Is Cassandra running" do
-  command "service cassandra status"
-end
+cassandra_running = Mixlib::ShellOut.new("service cassandra status").run_command
+puts "ExitStatus : " + cassandra_running.exitstatus.to_s
+puts "Status : " + cassandra_running.status.to_s
 
 file "#{first_run_complete}" do
-  if !cassandra_running
+  if !cassandra_running.exitstatus
     content '{ "seeds": { "are_set": false } }'
   else
     content '{ "seeds": { "are_set": true } }'
