@@ -126,7 +126,6 @@ service "cassandra" do
 end
 
 cassandra_running = Mixlib::ShellOut.new("service cassandra status").run_command
-puts "ExitStatus : " + cassandra_running.exitstatus.to_s
 
 file "#{first_run_complete}" do
   if cassandra_running.exitstatus != 0
