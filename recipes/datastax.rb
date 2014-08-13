@@ -94,7 +94,7 @@ end
 
 template File.join(node.cassandra.conf_dir, "cassandra-env.yaml") do
   cookbook node.cassandra.templates_cookbook
-  source "cassandra-evn.yaml.erb"
+  source "cassandra-env.yaml.erb"
   owner node.cassandra.user
   group node.cassandra.user
   mode  0644
