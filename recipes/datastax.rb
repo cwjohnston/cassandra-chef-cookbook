@@ -77,7 +77,7 @@ end
 
 seeds = node.cassandra.seeds
 
-template File.join(node.cassandra.conf_dir, "cassandra.yaml") do
+template ::File.join(node.cassandra.conf_dir, "cassandra.yaml") do
   cookbook node.cassandra.templates_cookbook
   source "cassandra.yaml.erb"
   owner node.cassandra.user
@@ -92,9 +92,9 @@ template File.join(node.cassandra.conf_dir, "cassandra.yaml") do
   end
 end
 
-template File.join(node.cassandra.conf_dir, "cassandra-env.yaml") do
+template ::File.join(node.cassandra.conf_dir, "cassandra-env.sh") do
   cookbook node.cassandra.templates_cookbook
-  source "cassandra-env.yaml.erb"
+  source "cassandra-env.sh.erb"
   owner node.cassandra.user
   group node.cassandra.user
   mode  0644
