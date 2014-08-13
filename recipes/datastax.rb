@@ -75,16 +75,31 @@ link '/etc/init.d/cassandra' do
   only_if { ::File.exists?('/etc/init.d/dse') && !::File.exists?('/etc/init.d/cassandra') }
 end
 
-%w(cassandra.yaml cassandra-env.sh).each do |f|
-  template File.join(node.cassandra.conf_dir, f) do
-    cookbook node.cassandra.templates_cookbook
-    source "#{f}.erb"
-    owner node.cassandra.user
-    group node.cassandra.user
-    mode  0644
-    if ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json")
-      notifies :restart, "service[cassandra]", :delayed
-    end
+seeds = node.cassandra.seeds
+
+template File.join(node.cassandra.conf_dir, "cassandra.yaml") do
+  cookbook node.cassandra.templates_cookbook
+  source "cassandra.yaml.erb"
+  owner node.cassandra.user
+  group node.cassandra.user
+  mode  0644
+  if (seeds.include?("#{node.ipaddress}") && seeds.size > 1) && ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json")
+    notifies :nothing, "service[cassandra]", :delayed
+  elsif seeds.size == 1 && ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json")
+    notifies :restart, "service[cassandra]", :delayed
+  else
+    Chef::Log.warn "No action taken on conf file configuration"
+  end
+end
+
+template File.join(node.cassandra.conf_dir, "cassandra-env.yaml") do
+  cookbook node.cassandra.templates_cookbook
+  source "cassandra-evn.yaml.erb"
+  owner node.cassandra.user
+  group node.cassandra.user
+  mode  0644
+  if ::File.exists?("#{node.cassandra.conf_dir}/first_run_complete.json")
+    notifies :restart, "service[cassandra]", :delayed
   end
 end
 
